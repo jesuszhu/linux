@@ -648,7 +648,7 @@ static void utrace_wakeup(struct task_struct *target, struct utrace *utrace)
 {
 	lockdep_assert_held(&utrace->lock);
 	spin_lock_irq(&target->sighand->siglock);
-	wake_up_state(target, __TASK_TRACED);
+	wake_up_quiescent(target, __TASK_TRACED);
 	spin_unlock_irq(&target->sighand->siglock);
 }
 
