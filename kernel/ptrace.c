@@ -24,6 +24,18 @@
 #include <linux/regset.h>
 #include <linux/hw_breakpoint.h>
 
+static void ptrace_signal_wake_up(struct task_struct *p, int quiescent)
+{
+	unsigned int state;
+
+	set_tsk_thread_flag(p, TIF_SIGPENDING);
+
+	state = TASK_INTERRUPTIBLE;
+	if (quiescent)
+		state |= (__TASK_STOPPED | __TASK_TRACED);
+	if (!wake_up_quiescent(p, state))
+		kick_process(p);
+}
 
 /*
  * ptrace a task: make the debugger its new parent and
@@ -92,7 +104,7 @@ void __ptrace_unlink(struct task_struct *child)
 	 * TASK_KILLABLE sleeps.
 	 */
 	if (child->group_stop & GROUP_STOP_PENDING || task_is_traced(child))
-		signal_wake_up(child, task_is_traced(child));
+		ptrace_signal_wake_up(child, task_is_traced(child));
 
 	spin_unlock(&child->sighand->siglock);
 }
@@ -245,7 +257,7 @@ static int ptrace_attach(struct task_struct *task)
 	 */
 	if (task_is_stopped(task)) {
 		task->group_stop |= GROUP_STOP_PENDING | GROUP_STOP_TRAPPING;
-		signal_wake_up(task, 1);
+		ptrace_signal_wake_up(task, 1);
 		wait_trap = true;
 	}
 
