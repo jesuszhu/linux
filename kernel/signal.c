@@ -702,11 +702,26 @@ void signal_wake_up(struct task_struct *t, int resume)
 		kick_process(t);
 }
 
+#define STATE_QUIESCENT	(__TASK_STOPPED | __TASK_TRACED | __TASK_UTRACED)
 /*
  * wakes up the STOPPED/TRACED task, must be called with ->siglock held.
  */
 int wake_up_quiescent(struct task_struct *p, unsigned int state)
 {
+	unsigned int quiescent = (p->state & STATE_QUIESCENT);
+
+	WARN_ON(state & ~(STATE_QUIESCENT | TASK_INTERRUPTIBLE));
+
+	if (quiescent) {
+		state &= ~TASK_INTERRUPTIBLE;
+		if ((quiescent & ~state) != 0) {
+			p->state &= ~state;
+			WARN_ON(!(p->state & STATE_QUIESCENT));
+			WARN_ON(!(p->state & TASK_WAKEKILL));
+			return 0;
+		}
+	}
+
 	return wake_up_state(p, state);
 }
 
