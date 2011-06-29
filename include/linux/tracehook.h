@@ -528,11 +528,11 @@ static inline int tracehook_get_signal(struct task_struct *task,
 }
 
 /**
- * tracehook_finish_jctl - report about return from job control stop
+ * tracehook_finish_stop - report about return from STOPPED/TRACED
  *
- * This is called by do_signal_stop() after wakeup.
+ * This is called by do_signal_stop() and ptrace_stop after wakeup.
  */
-static inline void tracehook_finish_jctl(void)
+static inline void tracehook_finish_stop(void)
 {
 	if (task_utrace_flags(current))
 		utrace_finish_stop();

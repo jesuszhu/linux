@@ -1816,6 +1816,7 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 		read_unlock(&tasklist_lock);
 	}
 
+	tracehook_finish_stop();
 	/*
 	 * While in TASK_TRACED, we were considered "frozen enough".
 	 * Now that we woke up, it's crucial if we're supposed to be
@@ -1952,6 +1953,8 @@ retry:
 		/* Now we don't run again until woken by SIGCONT or SIGKILL */
 		schedule();
 
+		tracehook_finish_stop();
+
 		spin_lock_irq(&current->sighand->siglock);
 	} else {
 		ptrace_stop(current->group_stop & GROUP_STOP_SIGMASK,
@@ -1973,8 +1976,6 @@ retry:
 	task_clear_group_stop_trapping(current);
 
 	spin_unlock_irq(&current->sighand->siglock);
-
-	tracehook_finish_jctl();
 
 	return 1;
 }
