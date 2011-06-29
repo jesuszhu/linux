@@ -608,6 +608,8 @@ static int ptrace_setsiginfo(struct task_struct *child, const siginfo_t *info)
 static int ptrace_resume(struct task_struct *child, long request,
 			 unsigned long data)
 {
+	unsigned long flags;
+
 	if (!valid_signal(data))
 		return -EIO;
 
@@ -636,7 +638,11 @@ static int ptrace_resume(struct task_struct *child, long request,
 	}
 
 	child->exit_code = data;
-	wake_up_state(child, __TASK_TRACED);
+
+	if (lock_task_sighand(child, &flags)) {
+		wake_up_state(child, __TASK_TRACED);
+		unlock_task_sighand(child, &flags);
+	}
 
 	return 0;
 }

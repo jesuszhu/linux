@@ -1918,7 +1918,10 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 		if (gstop_done)
 			do_notify_parent_cldstop(current, false, why);
 
+		spin_lock_irq(&current->sighand->siglock);
 		__set_current_state(TASK_RUNNING);
+		spin_unlock_irq(&current->sighand->siglock);
+
 		if (clear_code)
 			current->exit_code = 0;
 		read_unlock(&tasklist_lock);
