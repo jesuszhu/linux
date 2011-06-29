@@ -462,6 +462,8 @@ static void put_detached_list(struct list_head *list)
  */
 #define ENGINE_STOP		(1UL << _UTRACE_NEVENTS)
 
+#define task_is_utraced(task)	((task->state & __TASK_UTRACED) != 0)
+
 static void mark_engine_wants_stop(struct task_struct *task,
 				   struct utrace_engine *engine)
 {
@@ -576,7 +578,7 @@ int utrace_set_events(struct task_struct *target,
 
 	ret = 0;
 	if ((old_flags & ~events) && target != current &&
-	    !task_is_stopped_or_traced(target) && !target->exit_state) {
+	    !task_is_utraced(target) && !target->exit_state) {
 		/*
 		 * This barrier ensures that our engine->flags changes
 		 * have hit before we examine utrace->reporting,
@@ -623,21 +625,21 @@ static void mark_engine_detached(struct utrace_engine *engine)
  */
 static bool utrace_do_stop(struct task_struct *target, struct utrace *utrace)
 {
-	if (task_is_stopped(target)) {
+	if (task_is_stopped_or_traced(target)) {
 		/*
 		 * Stopped is considered quiescent; when it wakes up, it will
 		 * go through utrace_finish_stop() before doing anything else.
 		 */
 		spin_lock_irq(&target->sighand->siglock);
-		if (likely(task_is_stopped(target)))
-			__set_task_state(target, TASK_TRACED);
+		if (likely(task_is_stopped_or_traced(target)))
+			target->state |= TASK_UTRACED;
 		spin_unlock_irq(&target->sighand->siglock);
 	} else if (utrace->resume > UTRACE_REPORT) {
 		utrace->resume = UTRACE_REPORT;
 		set_notify_resume(target);
 	}
 
-	return task_is_traced(target);
+	return task_is_utraced(target);
 }
 
 /*
@@ -648,7 +650,7 @@ static void utrace_wakeup(struct task_struct *target, struct utrace *utrace)
 {
 	lockdep_assert_held(&utrace->lock);
 	spin_lock_irq(&target->sighand->siglock);
-	wake_up_quiescent(target, __TASK_TRACED);
+	wake_up_quiescent(target, __TASK_UTRACED);
 	spin_unlock_irq(&target->sighand->siglock);
 }
 
@@ -710,7 +712,7 @@ static bool utrace_reset(struct task_struct *task, struct utrace *utrace)
 	/*
 	 * If no more engines want it stopped, wake it up.
 	 */
-	if (task_is_traced(task) && !(flags & ENGINE_STOP)) {
+	if (task_is_utraced(task) && !(flags & ENGINE_STOP)) {
 		/*
 		 * It just resumes, so make sure single-step
 		 * is not left set.
@@ -749,7 +751,7 @@ void utrace_finish_stop(void)
 }
 
 /*
- * Perform %UTRACE_STOP, i.e. block in TASK_TRACED until woken up.
+ * Perform %UTRACE_STOP, i.e. block in TASK_UTRACED until woken up.
  * @task == current, @utrace == current->utrace, which is not locked.
  * Return true if we were woken up by SIGKILL even though some utrace
  * engine may still want us to stay stopped.
@@ -799,7 +801,7 @@ relock:
 		return;
 	}
 
-	__set_current_state(TASK_TRACED);
+	__set_current_state(TASK_UTRACED);
 
 	spin_unlock_irq(&task->sighand->siglock);
 	spin_unlock(&utrace->lock);
@@ -809,14 +811,14 @@ relock:
 	utrace_finish_stop();
 
 	/*
-	 * While in TASK_TRACED, we were considered "frozen enough".
+	 * While in TASK_UTRACED, we were considered "frozen enough".
 	 * Now that we woke up, it's crucial if we're supposed to be
 	 * frozen that we freeze now before running anything substantial.
 	 */
 	try_to_freeze();
 
 	/*
-	 * While we were in TASK_TRACED, complete_signal() considered
+	 * While we were in TASK_UTRACED, complete_signal() considered
 	 * us "uninterested" in signal wakeups.  Now make sure our
 	 * TIF_SIGPENDING state is correct for normal running.
 	 */
@@ -1087,7 +1089,7 @@ int utrace_control(struct task_struct *target,
 	if (unlikely(IS_ERR(utrace)))
 		return PTR_ERR(utrace);
 
-	reset = task_is_traced(target);
+	reset = task_is_utraced(target);
 	ret = 0;
 
 	/*
