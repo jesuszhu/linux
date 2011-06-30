@@ -2006,9 +2006,6 @@ retry:
 static int ptrace_signal(int signr, siginfo_t *info,
 			 struct pt_regs *regs, void *cookie)
 {
-	if (!task_ptrace(current))
-		return signr;
-
 	ptrace_signal_deliver(regs, cookie);
 
 	/* Let the debugger run.  */
@@ -2110,6 +2107,7 @@ relock:
 		signr = tracehook_get_signal(current, regs, info, return_ka);
 		if (unlikely(signr < 0))
 			goto relock;
+
 		if (unlikely(signr != 0))
 			ka = return_ka;
 		else {
@@ -2117,18 +2115,18 @@ relock:
 				     GROUP_STOP_PENDING) && do_signal_stop(0))
 				goto relock;
 
-			signr = dequeue_signal(current, &current->blocked,
-					       info);
+			signr = dequeue_signal(current, &current->blocked, info);
 
+			ka = &sighand->action[signr-1];
+		}
+
+		if (!signr)
+			break; /* will return 0 */
+
+		if (signr != SIGKILL && current->ptrace) {
+			signr = ptrace_signal(signr, info, regs, cookie);
 			if (!signr)
-				break; /* will return 0 */
-
-			if (signr != SIGKILL) {
-				signr = ptrace_signal(signr, info,
-						      regs, cookie);
-				if (!signr)
-					continue;
-			}
+				continue;
 
 			ka = &sighand->action[signr-1];
 		}
