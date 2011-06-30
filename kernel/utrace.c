@@ -697,6 +697,7 @@ static bool utrace_reset(struct task_struct *task, struct utrace *utrace)
 		BUG_ON(utrace->death);
 		flags &= UTRACE_EVENT(REAP);
 	} else if (!(flags & UTRACE_EVENT_SYSCALL) &&
+		   !(task->ptrace & PT_SYSCALL_TRACE) &&
 		   test_tsk_thread_flag(task, TIF_SYSCALL_TRACE)) {
 		clear_tsk_thread_flag(task, TIF_SYSCALL_TRACE);
 	}
