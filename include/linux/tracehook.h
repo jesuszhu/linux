@@ -76,7 +76,7 @@ static inline void ptrace_report_syscall(struct pt_regs *regs)
 {
 	int ptrace = task_ptrace(current);
 
-	if (!(ptrace & PT_PTRACED))
+	if (!(ptrace & PT_SYSCALL_TRACE))
 		return;
 
 	ptrace_notify(SIGTRAP | ((ptrace & PT_TRACESYSGOOD) ? 0x80 : 0));

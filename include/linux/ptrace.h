@@ -90,6 +90,8 @@
 
 #define PT_TRACE_MASK	0x000003f4
 
+#define PT_SYSCALL_TRACE	0x00010000
+
 /* single stepping state bits (used on ARM and PA-RISC) */
 #define PT_SINGLESTEP_BIT	31
 #define PT_SINGLESTEP		(1<<PT_SINGLESTEP_BIT)
@@ -187,6 +189,7 @@ static inline void ptrace_init_task(struct task_struct *child, bool ptrace)
 	child->ptrace = 0;
 	if (unlikely(ptrace) && (current->ptrace & PT_PTRACED)) {
 		child->ptrace = current->ptrace;
+		child->ptrace &= ~PT_SYSCALL_TRACE;
 		__ptrace_link(child, current->parent);
 	}
 
