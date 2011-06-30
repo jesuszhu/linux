@@ -23,6 +23,7 @@
 #include <linux/uaccess.h>
 #include <linux/regset.h>
 #include <linux/hw_breakpoint.h>
+#include <linux/utrace.h>
 
 static void ptrace_signal_wake_up(struct task_struct *p, int quiescent)
 {
@@ -39,13 +40,16 @@ static void ptrace_signal_wake_up(struct task_struct *p, int quiescent)
 
 static void ptrace_set_syscall_trace(struct task_struct *p, bool on)
 {
+	task_utrace_lock(p);
 	if (on) {
 		p->ptrace |= PT_SYSCALL_TRACE;
 		set_tsk_thread_flag(p, TIF_SYSCALL_TRACE);
 	} else {
 		p->ptrace &= ~PT_SYSCALL_TRACE;
-		clear_tsk_thread_flag(p, TIF_SYSCALL_TRACE);
+		if (!(task_utrace_flags(p) & UTRACE_EVENT_SYSCALL))
+			clear_tsk_thread_flag(p, TIF_SYSCALL_TRACE);
 	}
+	task_utrace_unlock(p);
 }
 
 /*
