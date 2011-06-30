@@ -79,6 +79,32 @@ static int __init utrace_init(void)
 }
 module_init(utrace_init);
 
+void task_utrace_lock(struct task_struct *task)
+{
+	struct utrace *utrace = task_utrace_struct(task);
+
+	if (!utrace) {
+		task_lock(task);
+		utrace = task_utrace_struct(task);
+		if (!utrace)
+			return;
+
+		task_unlock(task);
+	}
+
+	spin_lock(&utrace->lock);
+}
+
+void task_utrace_unlock(struct task_struct *task)
+{
+	struct utrace *utrace = task_utrace_struct(task);
+
+	if (utrace)
+		spin_unlock(&utrace->lock);
+	else
+		task_unlock(task);
+}
+
 /*
  * Set up @task.utrace for the first time.  We can have races
  * between two utrace_attach_task() calls here.  The task_lock()
