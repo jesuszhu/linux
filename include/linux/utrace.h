@@ -117,6 +117,12 @@ void utrace_signal_handler(struct task_struct *, int);
 
 #ifndef CONFIG_UTRACE
 
+static inline void task_utrace_lock(struct task_struct *task)
+{
+}
+static inline void task_utrace_unlock(struct task_struct *task)
+{
+}
 /*
  * <linux/tracehook.h> uses these accessors to avoid #ifdef CONFIG_UTRACE.
  */
@@ -138,6 +144,9 @@ static inline void task_utrace_proc_status(struct seq_file *m,
 }
 
 #else  /* CONFIG_UTRACE */
+
+extern void task_utrace_lock(struct task_struct *task);
+extern void task_utrace_unlock(struct task_struct *task);
 
 static inline unsigned long task_utrace_flags(struct task_struct *task)
 {
