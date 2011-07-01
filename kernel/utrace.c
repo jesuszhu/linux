@@ -1828,7 +1828,8 @@ static void finish_resume_report(struct task_struct *task,
 
 	case UTRACE_BLOCKSTEP:
 		if (likely(arch_has_block_step())) {
-			user_enable_block_step(task);
+			if (!ptrace_wants_step(task))
+				user_enable_block_step(task);
 			break;
 		}
 
@@ -1841,7 +1842,8 @@ static void finish_resume_report(struct task_struct *task,
 
 	case UTRACE_SINGLESTEP:
 		if (likely(arch_has_single_step())) {
-			user_enable_single_step(task);
+			if (!ptrace_wants_step(task))
+				user_enable_single_step(task);
 		} else {
 			/*
 			 * This means some callback is to blame for failing
@@ -1856,7 +1858,8 @@ static void finish_resume_report(struct task_struct *task,
 	case UTRACE_REPORT:
 	case UTRACE_RESUME:
 	default:
-		user_disable_single_step(task);
+		if (!ptrace_wants_step(task))
+			user_disable_single_step(task);
 		break;
 	}
 }
