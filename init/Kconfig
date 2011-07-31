@@ -386,6 +386,15 @@ config AUDIT_LOGINUID_IMMUTABLE
 	  one to drop potentially dangerous capabilites from the login tasks,
 	  but may not be backwards compatible with older init systems.
 
+config UTRACE
+	bool "Infrastructure for tracing and debugging user processes"
+	depends on EXPERIMENTAL
+	depends on HAVE_ARCH_TRACEHOOK
+	help
+	  Enable the utrace process tracing interface.  This is an internal
+	  kernel interface exported to kernel modules, to track events in
+	  user threads, extract and change user thread state.
+
 source "kernel/irq/Kconfig"
 
 menu "RCU Subsystem"
