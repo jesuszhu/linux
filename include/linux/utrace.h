@@ -107,6 +107,8 @@ bool utrace_report_syscall_entry(struct pt_regs *);
 void utrace_report_syscall_exit(struct pt_regs *);
 void utrace_signal_handler(struct task_struct *, int);
 
+#define UTRACE_FLAG(task, ev)	(task_utrace_flags(task) & UTRACE_EVENT(ev))
+
 #ifndef CONFIG_UTRACE
 
 /*
