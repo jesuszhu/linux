@@ -161,6 +161,28 @@ static inline void tracehook_signal_handler(int sig, siginfo_t *info,
 		ptrace_notify(SIGTRAP);
 }
 
+/**
+ * tracehook_consider_fatal_signal - suppress special handling of fatal signal
+ * @task:		task receiving the signal
+ * @sig:		signal number being sent
+ *
+ * Return nonzero to prevent special handling of this termination signal.
+ * Normally handler for signal is %SIG_DFL.  It can be %SIG_IGN if @sig is
+ * ignored, in which case force_sig() is about to reset it to %SIG_DFL.
+ * When this returns zero, this signal might cause a quick termination
+ * that does not give the debugger a chance to intercept the signal.
+ *
+ * Called with or without @task->sighand->siglock held.
+ */
+static inline int tracehook_consider_fatal_signal(struct task_struct *task,
+						  int sig)
+{
+	if (unlikely(task_utrace_flags(task) & (UTRACE_EVENT(SIGNAL_TERM) |
+						UTRACE_EVENT(SIGNAL_CORE))))
+		return 1;
+	return task->ptrace != 0;
+}
+
 #ifdef TIF_NOTIFY_RESUME
 /**
  * set_notify_resume - cause tracehook_notify_resume() to be called

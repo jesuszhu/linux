@@ -330,7 +330,7 @@ void __kprobes do_per_trap(struct pt_regs *regs)
 
 	if (notify_die(DIE_SSTEP, "sstep", regs, 0, 0, SIGTRAP) == NOTIFY_STOP)
 		return;
-	if (!current->ptrace)
+	if (!tracehook_consider_fatal_signal(current, SIGTRAP))
 		return;
 	info.si_signo = SIGTRAP;
 	info.si_errno = 0;
@@ -415,7 +415,7 @@ static void __kprobes illegal_op(struct pt_regs *regs)
 		if (get_user(*((__u16 *) opcode), (__u16 __user *) location))
 			return;
 		if (*((__u16 *) opcode) == S390_BREAKPOINT_U16) {
-			if (current->ptrace) {
+			if (tracehook_consider_fatal_signal(current, SIGTRAP)) {
 				info.si_signo = SIGTRAP;
 				info.si_errno = 0;
 				info.si_code = TRAP_BRKPT;
