@@ -66,6 +66,7 @@
 #include <linux/user-return-notifier.h>
 #include <linux/oom.h>
 #include <linux/khugepaged.h>
+#include <linux/utrace.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -169,6 +170,8 @@ void free_task(struct task_struct *tsk)
 	free_thread_info(tsk->stack);
 	rt_mutex_debug_task_free(tsk);
 	ftrace_graph_exit_task(tsk);
+	if (task_utrace_struct(tsk))
+		utrace_free_task(tsk);
 	free_task_struct(tsk);
 }
 EXPORT_SYMBOL(free_task);
@@ -1091,6 +1094,8 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	p = dup_task_struct(current);
 	if (!p)
 		goto fork_out;
+
+	utrace_init_task(p);
 
 	ftrace_graph_init_task(p);
 
