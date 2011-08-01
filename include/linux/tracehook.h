@@ -49,6 +49,7 @@
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <linux/security.h>
+#include <linux/utrace.h>
 struct linux_binprm;
 
 /*
@@ -96,6 +97,9 @@ static inline void ptrace_report_syscall(struct pt_regs *regs)
 static inline __must_check int tracehook_report_syscall_entry(
 	struct pt_regs *regs)
 {
+	if ((task_utrace_flags(current) & UTRACE_EVENT(SYSCALL_ENTRY)) &&
+	    utrace_report_syscall_entry(regs))
+		return 1;
 	ptrace_report_syscall(regs);
 	return 0;
 }
@@ -119,6 +123,9 @@ static inline __must_check int tracehook_report_syscall_entry(
  */
 static inline void tracehook_report_syscall_exit(struct pt_regs *regs, int step)
 {
+	if (task_utrace_flags(current) & UTRACE_EVENT(SYSCALL_EXIT))
+		utrace_report_syscall_exit(regs);
+
 	if (step) {
 		siginfo_t info;
 		user_single_step_siginfo(current, regs, &info);
@@ -148,6 +155,8 @@ static inline void tracehook_signal_handler(int sig, siginfo_t *info,
 					    const struct k_sigaction *ka,
 					    struct pt_regs *regs, int stepping)
 {
+	if (task_utrace_flags(current))
+		utrace_signal_handler(current, stepping);
 	if (stepping)
 		ptrace_notify(SIGTRAP);
 }
@@ -179,10 +188,21 @@ static inline void set_notify_resume(struct task_struct *task)
  * asynchronously, this will be called again before we return to
  * user mode.
  *
- * Called without locks.
+ * Called without locks.  However, on some machines this may be
+ * called with interrupts disabled.
  */
 static inline void tracehook_notify_resume(struct pt_regs *regs)
 {
+	struct task_struct *task = current;
+	/*
+	 * Prevent the following store/load from getting ahead of the
+	 * caller which clears TIF_NOTIFY_RESUME. This pairs with the
+	 * implicit mb() before setting TIF_NOTIFY_RESUME in
+	 * set_notify_resume().
+	 */
+	smp_mb();
+	if (task_utrace_flags(task))
+		utrace_resume(task, regs);
 }
 #endif	/* TIF_NOTIFY_RESUME */
 
