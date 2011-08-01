@@ -88,7 +88,7 @@ static int sig_ignored(struct task_struct *t, int sig, int from_ancestor_ns)
 	/*
 	 * Tracers may want to know about even ignored signals.
 	 */
-	return !t->ptrace;
+	return !t->ptrace && !UTRACE_FLAG(t, SIGNAL_IGN);
 }
 
 /*
@@ -151,6 +151,11 @@ void recalc_sigpending_and_wake(struct task_struct *t)
 
 void recalc_sigpending(void)
 {
+	if (task_utrace_flags(current) && utrace_interrupt_pending()) {
+		set_thread_flag(TIF_SIGPENDING);
+		return;
+	}
+
 	if (!recalc_sigpending_tsk(current) && !freezing(current))
 		clear_thread_flag(TIF_SIGPENDING);
 
