@@ -1539,6 +1539,8 @@ long do_fork(unsigned long clone_flags,
 
 		audit_finish_fork(p);
 
+		UTRACE_HOOK(current, CLONE, report_clone(clone_flags, p));
+
 		/*
 		 * We set PF_STARTING at creation in case tracing wants to
 		 * use this to distinguish a fully live task from one that
@@ -1550,6 +1552,8 @@ long do_fork(unsigned long clone_flags,
 		wake_up_new_task(p);
 
 		/* forking complete and child started to run, tell ptracer */
+		if (clone_flags & CLONE_VFORK)
+			UTRACE_HOOK(current, CLONE, finish_vfork(current));
 		if (unlikely(trace))
 			ptrace_event(trace, nr);
 
