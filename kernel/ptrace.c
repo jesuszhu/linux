@@ -40,10 +40,13 @@ void ptrace_signal_wake_up(struct task_struct *p, int quiescent)
 
 static void ptrace_set_syscall_trace(struct task_struct *p, bool on)
 {
-	if (on)
+	if (on) {
+		p->ptrace |= PT_SYSCALL_TRACE;
 		set_tsk_thread_flag(p, TIF_SYSCALL_TRACE);
-	else
+	} else {
+		p->ptrace &= ~PT_SYSCALL_TRACE;
 		clear_tsk_thread_flag(p, TIF_SYSCALL_TRACE);
+	}
 }
 
 static int ptrace_trapping_sleep_fn(void *flags)
