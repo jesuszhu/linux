@@ -697,4 +697,26 @@ static inline __must_check int utrace_barrier_pid(struct pid *pid,
 
 #endif	/* CONFIG_UTRACE */
 
+static inline void utrace_release_task(struct task_struct *task)
+{
+	/* see utrace_add_engine() about this barrier */
+	smp_mb();
+	if (task_utrace_flags(task))
+		utrace_maybe_reap(task, task_utrace_struct(task), true);
+}
+
+static inline void utrace_exit_notify(struct task_struct *task,
+					  int signal, int group_dead)
+{
+	/*
+	 * If utrace_set_events() was just called to enable
+	 * UTRACE_EVENT(DEATH), then we are obliged to call
+	 * utrace_report_death() and not miss it.  utrace_set_events()
+	 * checks @task->exit_state under tasklist_lock to synchronize
+	 * with exit_notify(), the caller.
+	 */
+	if (task_utrace_flags(task) & _UTRACE_DEATH_EVENTS)
+		utrace_report_death(task, group_dead, signal);
+}
+
 #endif	/* linux/utrace.h */
