@@ -2027,7 +2027,7 @@ int utrace_get_signal(struct task_struct *task, struct pt_regs *regs,
 		ka = NULL;
 		memset(return_ka, 0, sizeof *return_ka);
 	} else if (!(task->utrace_flags & UTRACE_EVENT_SIGNAL_ALL) ||
-		   unlikely(task->jobctl & JOBCTL_STOP_PENDING)) {
+		   unlikely(task->jobctl & JOBCTL_PENDING_MASK)) {
 		/*
 		 * If no engine is interested in intercepting signals or
 		 * we must stop, let the caller just dequeue them normally
