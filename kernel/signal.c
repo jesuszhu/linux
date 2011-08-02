@@ -703,6 +703,14 @@ void signal_wake_up(struct task_struct *t, int resume)
 }
 
 /*
+ * wakes up the STOPPED/TRACED task, must be called with ->siglock held.
+ */
+int wake_up_quiescent(struct task_struct *p, unsigned int state)
+{
+	return wake_up_state(p, state);
+}
+
+/*
  * Remove signals in mask from the pending set and queue.
  * Returns 1 if any signals were found.
  *
@@ -889,7 +897,7 @@ static int prepare_signal(int sig, struct task_struct *p, int from_ancestor_ns)
 			task_clear_jobctl_pending(t, JOBCTL_STOP_PENDING);
 			rm_from_queue(SIG_KERNEL_STOP_MASK, &t->pending);
 			if (likely(!(t->ptrace & PT_SEIZED)))
-				wake_up_state(t, __TASK_STOPPED);
+				wake_up_quiescent(t, __TASK_STOPPED);
 			else
 				ptrace_trap_notify(t);
 		} while_each_thread(p, t);
@@ -1919,7 +1927,7 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 			do_notify_parent_cldstop(current, false, why);
 
 		spin_lock_irq(&current->sighand->siglock);
-		__set_current_state(TASK_RUNNING);
+		wake_up_quiescent(current, __TASK_TRACED);
 		spin_unlock_irq(&current->sighand->siglock);
 
 		if (clear_code)

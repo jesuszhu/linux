@@ -640,7 +640,7 @@ static int ptrace_resume(struct task_struct *child, long request,
 	child->exit_code = data;
 
 	if (lock_task_sighand(child, &flags)) {
-		wake_up_state(child, __TASK_TRACED);
+		wake_up_quiescent(child, __TASK_TRACED);
 		unlock_task_sighand(child, &flags);
 	}
 
