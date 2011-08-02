@@ -910,6 +910,7 @@ void do_exit(long code)
 	 */
 	set_fs(USER_DS);
 
+	UTRACE_HOOK(current, EXIT, report_exit(&code));
 	ptrace_event(PTRACE_EVENT_EXIT, code);
 
 	validate_creds_for_do_exit(tsk);

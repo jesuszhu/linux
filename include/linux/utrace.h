@@ -109,6 +109,12 @@ void utrace_signal_handler(struct task_struct *, int);
 
 #define UTRACE_FLAG(task, ev)	(task_utrace_flags(task) & UTRACE_EVENT(ev))
 
+#define UTRACE_HOOK(task, ev, callback)			\
+	do {						\
+		if (UTRACE_FLAG(task, ev))		\
+			utrace_ ## callback;		\
+	} while (0)
+
 #ifndef CONFIG_UTRACE
 
 /*
