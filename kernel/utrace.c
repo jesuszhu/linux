@@ -648,11 +648,7 @@ static void utrace_wakeup(struct task_struct *target, struct utrace *utrace)
 {
 	lockdep_assert_held(&utrace->lock);
 	spin_lock_irq(&target->sighand->siglock);
-	if (target->signal->flags & SIGNAL_STOP_STOPPED ||
-	    target->signal->group_stop_count)
-		target->state = TASK_STOPPED;
-	else
-		wake_up_state(target, __TASK_TRACED);
+	wake_up_state(target, __TASK_TRACED);
 	spin_unlock_irq(&target->sighand->siglock);
 }
 
@@ -804,14 +800,6 @@ relock:
 	}
 
 	__set_current_state(TASK_TRACED);
-
-	/*
-	 * If there is a group stop in progress,
-	 * we must participate in the bookkeeping.
-	 */
-	if (unlikely(task->signal->group_stop_count) &&
-			!--task->signal->group_stop_count)
-		task->signal->flags = SIGNAL_STOP_STOPPED;
 
 	spin_unlock_irq(&task->sighand->siglock);
 	spin_unlock(&utrace->lock);
@@ -2037,7 +2025,7 @@ int utrace_get_signal(struct task_struct *task, struct pt_regs *regs,
 		ka = NULL;
 		memset(return_ka, 0, sizeof *return_ka);
 	} else if (!(task->utrace_flags & UTRACE_EVENT_SIGNAL_ALL) ||
-		   unlikely(task->signal->group_stop_count)) {
+		   unlikely(task->jobctl & JOBCTL_STOP_PENDING)) {
 		/*
 		 * If no engine is interested in intercepting signals or
 		 * we must stop, let the caller just dequeue them normally
