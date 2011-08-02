@@ -104,6 +104,9 @@ static inline __must_check int tracehook_report_syscall_entry(
 	return 0;
 }
 
+#define ptrace_wants_step()	\
+	(current->ptrace & (PT_SINGLE_STEP | PT_SINGLE_BLOCK))
+
 /**
  * tracehook_report_syscall_exit - task has just finished a system call
  * @regs:		user register state of current task
@@ -126,7 +129,7 @@ static inline void tracehook_report_syscall_exit(struct pt_regs *regs, int step)
 	if (task_utrace_flags(current) & UTRACE_EVENT(SYSCALL_EXIT))
 		utrace_report_syscall_exit(regs);
 
-	if (step) {
+	if (step && ptrace_wants_step()) {
 		siginfo_t info;
 		user_single_step_siginfo(current, regs, &info);
 		force_sig_info(SIGTRAP, &info, current);
@@ -157,7 +160,7 @@ static inline void tracehook_signal_handler(int sig, siginfo_t *info,
 {
 	if (task_utrace_flags(current))
 		utrace_signal_handler(current, stepping);
-	if (stepping)
+	if (stepping && ptrace_wants_step())
 		ptrace_notify(SIGTRAP);
 }
 

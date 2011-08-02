@@ -809,6 +809,7 @@ static int ioperm_get(struct task_struct *target,
  */
 void ptrace_disable(struct task_struct *child)
 {
+	child->ptrace &= ~(PT_SINGLE_STEP | PT_SINGLE_BLOCK);
 	user_disable_single_step(child);
 #ifdef TIF_SYSCALL_EMU
 	clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);

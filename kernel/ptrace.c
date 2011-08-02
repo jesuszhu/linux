@@ -649,13 +649,16 @@ static int ptrace_resume(struct task_struct *child, long request,
 		clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
 #endif
 
+	child->ptrace &= ~(PT_SINGLE_STEP | PT_SINGLE_BLOCK);
 	if (is_singleblock(request)) {
 		if (unlikely(!arch_has_block_step()))
 			return -EIO;
+		child->ptrace |= PT_SINGLE_BLOCK;
 		user_enable_block_step(child);
 	} else if (is_singlestep(request) || is_sysemu_singlestep(request)) {
 		if (unlikely(!arch_has_single_step()))
 			return -EIO;
+		child->ptrace |= PT_SINGLE_STEP;
 		user_enable_single_step(child);
 	} else {
 		user_disable_single_step(child);
