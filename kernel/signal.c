@@ -2275,17 +2275,27 @@ relock:
 	for (;;) {
 		struct k_sigaction *ka;
 
-		if (unlikely(current->jobctl & JOBCTL_STOP_PENDING) &&
-		    do_signal_stop(0))
+		signr = utrace_hook_signal(current, regs, info, return_ka);
+		if (unlikely(signr < 0))
 			goto relock;
 
-		if (unlikely(current->jobctl & JOBCTL_TRAP_MASK)) {
-			do_jobctl_trap();
-			spin_unlock_irq(&sighand->siglock);
-			goto relock;
+		if (unlikely(signr != 0))
+			ka = return_ka;
+		else {
+			if (unlikely(current->jobctl & JOBCTL_STOP_PENDING) &&
+			    do_signal_stop(0))
+				goto relock;
+
+			if (unlikely(current->jobctl & JOBCTL_TRAP_MASK)) {
+				do_jobctl_trap();
+				spin_unlock_irq(&sighand->siglock);
+				goto relock;
+			}
+
+			signr = dequeue_signal(current, &current->blocked, info);
+
+			ka = &sighand->action[signr-1];
 		}
-
-		signr = dequeue_signal(current, &current->blocked, info);
 
 		if (!signr)
 			break; /* will return 0 */
@@ -2295,9 +2305,9 @@ relock:
 					      regs, cookie);
 			if (!signr)
 				continue;
-		}
 
-		ka = &sighand->action[signr-1];
+			ka = &sighand->action[signr-1];
+		}
 
 		/* Trace actually delivered signals. */
 		trace_signal_deliver(signr, info, ka);
