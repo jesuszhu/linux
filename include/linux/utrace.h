@@ -719,4 +719,15 @@ static inline void utrace_exit_notify(struct task_struct *task,
 		utrace_report_death(task, group_dead, signal);
 }
 
+/**
+ * utrace_end_stop - report about return from STOPPED/TRACED
+ *
+ * This is called by do_signal_stop() and ptrace_stop after wakeup.
+ */
+static inline void utrace_end_stop(void)
+{
+	if (task_utrace_flags(current))
+		utrace_finish_stop();
+}
+
 #endif	/* linux/utrace.h */

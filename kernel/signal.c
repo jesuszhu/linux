@@ -1935,6 +1935,8 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 		read_unlock(&tasklist_lock);
 	}
 
+	utrace_end_stop();
+
 	/*
 	 * While in TASK_TRACED, we were considered "frozen enough".
 	 * Now that we woke up, it's crucial if we're supposed to be
@@ -2097,6 +2099,9 @@ static bool do_signal_stop(int signr)
 
 		/* Now we don't run again until woken by SIGCONT or SIGKILL */
 		schedule();
+
+		utrace_end_stop();
+
 		return true;
 	} else {
 		/*
