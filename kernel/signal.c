@@ -1948,6 +1948,14 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 		if (clear_code)
 			current->exit_code = 0;
 		read_unlock(&tasklist_lock);
+
+		/*
+		 * It is possible that __TASK_UTRACED was added by utrace
+		 * while we were __TASK_TRACED and before we take ->siglock
+		 * for wake_up_quiescent(), we need to block in this case.
+		 * Otherwise this is unnecessary but absolutely harmless.
+		 */
+		schedule();
 	}
 
 	utrace_end_stop();
