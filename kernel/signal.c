@@ -1960,6 +1960,17 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 
 	utrace_end_stop();
 
+	if (current->ptrace & PT_SINGLE_BLOCK)
+		user_enable_block_step(current);
+	else if (current->ptrace & PT_SINGLE_STEP)
+		user_enable_single_step(current);
+	else {
+		user_disable_single_step(current);
+		/* if utrace needs the stepping it should reassert */
+		if (task_utrace_flags(current))
+			set_thread_flag(TIF_NOTIFY_RESUME);
+	}
+
 	/*
 	 * While in TASK_TRACED, we were considered "frozen enough".
 	 * Now that we woke up, it's crucial if we're supposed to be
