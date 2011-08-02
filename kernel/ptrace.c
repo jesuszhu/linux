@@ -38,6 +38,14 @@ void ptrace_signal_wake_up(struct task_struct *p, int quiescent)
 		kick_process(p);
 }
 
+static void ptrace_set_syscall_trace(struct task_struct *p, bool on)
+{
+	if (on)
+		set_tsk_thread_flag(p, TIF_SYSCALL_TRACE);
+	else
+		clear_tsk_thread_flag(p, TIF_SYSCALL_TRACE);
+}
+
 static int ptrace_trapping_sleep_fn(void *flags)
 {
 	schedule();
@@ -437,7 +445,7 @@ static int ptrace_detach(struct task_struct *child, unsigned int data)
 
 	/* Architecture-specific hardware disable .. */
 	ptrace_disable(child);
-	clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
+	ptrace_set_syscall_trace(child, false);
 
 	write_lock_irq(&tasklist_lock);
 	/*
@@ -625,10 +633,7 @@ static int ptrace_resume(struct task_struct *child, long request,
 	if (!valid_signal(data))
 		return -EIO;
 
-	if (request == PTRACE_SYSCALL)
-		set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-	else
-		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
+	ptrace_set_syscall_trace(child, request == PTRACE_SYSCALL);
 
 #ifdef TIF_SYSCALL_EMU
 	if (request == PTRACE_SYSEMU || request == PTRACE_SYSEMU_SINGLESTEP)
