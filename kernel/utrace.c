@@ -1759,9 +1759,10 @@ void utrace_report_exit(long *exit_code)
  * For this reason, utrace_release_task checks for the event bits that get
  * us here, and delays its cleanup for us to do.
  */
-void utrace_report_death(struct task_struct *task, struct utrace *utrace,
-			 bool group_dead, int signal)
+void utrace_report_death(struct task_struct *task, bool group_dead, int signal)
 {
+	struct utrace *utrace = task_utrace_struct(task);
+
 	INIT_REPORT(report);
 
 	BUG_ON(!task->exit_state);

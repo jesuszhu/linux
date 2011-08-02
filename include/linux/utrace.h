@@ -99,7 +99,7 @@ int utrace_get_signal(struct task_struct *, struct pt_regs *,
 void utrace_report_clone(unsigned long, struct task_struct *);
 void utrace_finish_vfork(struct task_struct *);
 void utrace_report_exit(long *exit_code);
-void utrace_report_death(struct task_struct *, struct utrace *, bool, int);
+void utrace_report_death(struct task_struct *, bool, int);
 void utrace_report_jctl(int notify, int type);
 void utrace_report_exec(struct linux_binfmt *, struct linux_binprm *,
 			struct pt_regs *regs);
