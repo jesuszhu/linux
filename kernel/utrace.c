@@ -741,7 +741,7 @@ static bool utrace_reset(struct task_struct *task, struct utrace *utrace)
 void utrace_finish_stop(void)
 {
 	/*
-	 * If we were task_is_traced() and then SIGKILL'ed, make
+	 * If we were task_is_utraced() and then SIGKILL'ed, make
 	 * sure we do nothing until the tracer drops utrace->lock.
 	 */
 	if (unlikely(__fatal_signal_pending(current))) {
