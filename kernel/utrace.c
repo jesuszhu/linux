@@ -1881,7 +1881,8 @@ void utrace_resume(struct task_struct *task, struct pt_regs *regs)
 	 * code path leads to calling into get_signal_to_deliver(), which
 	 * implicitly reenables them by virtue of spin_unlock_irq.
 	 */
-	local_irq_enable();
+	if (irqs_disabled())	/* make trace_hardirqs_on() happy */
+		local_irq_enable();
 
 	/*
 	 * If this flag is still set it's because there was a signal
