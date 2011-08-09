@@ -59,8 +59,12 @@ static inline void ptrace_report_syscall(struct pt_regs *regs)
 {
 	int ptrace = current->ptrace;
 
-	if (!(ptrace & PT_SYSCALL_TRACE) && !test_thread_flag(TIF_SYSCALL_EMU))
-		return;
+	if (!(ptrace & PT_SYSCALL_TRACE)) {
+#ifdef TIF_SYSCALL_EMU
+		if (!test_thread_flag(TIF_SYSCALL_EMU))
+#endif
+			return;
+	}
 
 	ptrace_notify(SIGTRAP | ((ptrace & PT_TRACESYSGOOD) ? 0x80 : 0));
 
