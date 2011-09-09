@@ -651,6 +651,29 @@ void signal_wake_up(struct task_struct *t, int resume)
 		kick_process(t);
 }
 
+#define STATE_QUIESCENT	(__TASK_STOPPED | __TASK_TRACED | __TASK_UTRACED)
+/*
+ * wakes up the STOPPED/TRACED task, must be called with ->siglock held.
+ */
+int wake_up_quiescent(struct task_struct *p, unsigned int state)
+{
+	unsigned int quiescent = (p->state & STATE_QUIESCENT);
+
+	WARN_ON(state & ~(STATE_QUIESCENT | TASK_INTERRUPTIBLE));
+
+	if (quiescent) {
+		state &= ~TASK_INTERRUPTIBLE;
+		if ((quiescent & ~state) != 0) {
+			p->state &= ~state;
+			WARN_ON(!(p->state & STATE_QUIESCENT));
+			WARN_ON(!(p->state & TASK_WAKEKILL));
+			return 0;
+		}
+	}
+
+	return wake_up_state(p, state);
+}
+
 /*
  * Remove signals in mask from the pending set and queue.
  * Returns 1 if any signals were found.
@@ -811,7 +834,7 @@ static int prepare_signal(int sig, struct task_struct *p, int from_ancestor_ns)
 		do {
 			task_clear_group_stop_pending(t);
 			rm_from_queue(SIG_KERNEL_STOP_MASK, &t->pending);
-			wake_up_state(t, __TASK_STOPPED);
+			wake_up_quiescent(t, __TASK_STOPPED);
 		} while_each_thread(p, t);
 
 		/*
@@ -1806,10 +1829,34 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 		if (gstop_done)
 			do_notify_parent_cldstop(current, false, why);
 
-		__set_current_state(TASK_RUNNING);
+		spin_lock_irq(&current->sighand->siglock);
+		wake_up_quiescent(current, __TASK_TRACED);
+		spin_unlock_irq(&current->sighand->siglock);
+
 		if (clear_code)
 			current->exit_code = 0;
 		read_unlock(&tasklist_lock);
+
+		/*
+		 * It is possible that __TASK_UTRACED was added by utrace
+		 * while we were __TASK_TRACED and before we take ->siglock
+		 * for wake_up_quiescent(), we need to block in this case.
+		 * Otherwise this is unnecessary but absolutely harmless.
+		 */
+		schedule();
+	}
+
+	tracehook_finish_stop();
+
+	if (current->ptrace & PT_SINGLE_BLOCK)
+		user_enable_block_step(current);
+	else if (current->ptrace & PT_SINGLE_STEP)
+		user_enable_single_step(current);
+	else {
+		user_disable_single_step(current);
+		/* if utrace needs the stepping it should reassert */
+		if (task_utrace_flags(current))
+			set_thread_flag(TIF_NOTIFY_RESUME);
 	}
 
 	/*
@@ -1948,6 +1995,8 @@ retry:
 		/* Now we don't run again until woken by SIGCONT or SIGKILL */
 		schedule();
 
+		tracehook_finish_stop();
+
 		spin_lock_irq(&current->sighand->siglock);
 	} else {
 		ptrace_stop(current->group_stop & GROUP_STOP_SIGMASK,
@@ -1970,17 +2019,12 @@ retry:
 
 	spin_unlock_irq(&current->sighand->siglock);
 
-	tracehook_finish_jctl();
-
 	return 1;
 }
 
 static int ptrace_signal(int signr, siginfo_t *info,
 			 struct pt_regs *regs, void *cookie)
 {
-	if (!task_ptrace(current))
-		return signr;
-
 	ptrace_signal_deliver(regs, cookie);
 
 	/* Let the debugger run.  */
@@ -2082,6 +2126,7 @@ relock:
 		signr = tracehook_get_signal(current, regs, info, return_ka);
 		if (unlikely(signr < 0))
 			goto relock;
+
 		if (unlikely(signr != 0))
 			ka = return_ka;
 		else {
@@ -2089,18 +2134,18 @@ relock:
 				     GROUP_STOP_PENDING) && do_signal_stop(0))
 				goto relock;
 
-			signr = dequeue_signal(current, &current->blocked,
-					       info);
+			signr = dequeue_signal(current, &current->blocked, info);
 
+			ka = &sighand->action[signr-1];
+		}
+
+		if (!signr)
+			break; /* will return 0 */
+
+		if (signr != SIGKILL && current->ptrace) {
+			signr = ptrace_signal(signr, info, regs, cookie);
 			if (!signr)
-				break; /* will return 0 */
-
-			if (signr != SIGKILL) {
-				signr = ptrace_signal(signr, info,
-						      regs, cookie);
-				if (!signr)
-					continue;
-			}
+				continue;
 
 			ka = &sighand->action[signr-1];
 		}
