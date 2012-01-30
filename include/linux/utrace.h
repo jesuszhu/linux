@@ -317,6 +317,7 @@ static inline enum utrace_syscall_action utrace_syscall_action(u32 action)
 #define UTRACE_ATTACH_MATCH_MASK	0x000f
 #define UTRACE_ATTACH_CREATE		0x0010 /* Attach a new engine.  */
 #define UTRACE_ATTACH_EXCLUSIVE		0x0020 /* Refuse if existing match.  */
+#define UTRACE_ATTACH_ATOMIC		0x0040 /* For _CREATE, don't sleep  */
 
 /**
  * struct utrace_engine - per-engine structure

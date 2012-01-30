@@ -113,9 +113,9 @@ void task_utrace_unlock(struct task_struct *task)
  *
  * This returns false only in case of a memory allocation failure.
  */
-static bool utrace_task_alloc(struct task_struct *task)
+static bool utrace_task_alloc(struct task_struct *task, gfp_t gfp_flags)
 {
-	struct utrace *utrace = kmem_cache_zalloc(utrace_cachep, GFP_KERNEL);
+	struct utrace *utrace = kmem_cache_zalloc(utrace_cachep, gfp_flags);
 	if (unlikely(!utrace))
 		return false;
 	spin_lock_init(&utrace->lock);
@@ -295,6 +295,7 @@ struct utrace_engine *utrace_attach_task(
 {
 	struct utrace *utrace = task_utrace_struct(target);
 	struct utrace_engine *engine;
+	gfp_t gfp_flags;
 	int ret;
 
 	if (!(flags & UTRACE_ATTACH_CREATE)) {
@@ -317,13 +318,16 @@ struct utrace_engine *utrace_attach_task(
 		 */
 		return ERR_PTR(-EPERM);
 
+	gfp_flags = (flags & UTRACE_ATTACH_ATOMIC)
+				? GFP_ATOMIC : GFP_KERNEL;
+
 	if (!utrace) {
-		if (unlikely(!utrace_task_alloc(target)))
+		if (unlikely(!utrace_task_alloc(target, gfp_flags)))
 			return ERR_PTR(-ENOMEM);
 		utrace = task_utrace_struct(target);
 	}
 
-	engine = kmem_cache_alloc(utrace_engine_cachep, GFP_KERNEL);
+	engine = kmem_cache_alloc(utrace_engine_cachep, gfp_flags);
 	if (unlikely(!engine))
 		return ERR_PTR(-ENOMEM);
 
